@@ -4,7 +4,9 @@
   "description": "A calisthenics workout tracker app for personal use",
   "main": "index.js",
   "scripts": {
-    "start": "react-scripts start",
+    "start": "concurrently \"npm:start:server\" \"npm:start:open\"",
+    "start:server": "cross-env BROWSER=none react-scripts start",
+    "start:open": "wait-on http://localhost:3000 && cmd /c start chrome http://localhost:3000",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -12,8 +14,8 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "react-router-dom": "^6.8.1"
+    "react-router-dom": "^6.8.1",
+    "react-scripts": "5.0.1"
   },
   "browserslist": {
     "production": [
@@ -26,5 +28,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "wait-on": "^9.0.1"
   }
 }

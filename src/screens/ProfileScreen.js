@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userStorage, dataUtils, sessionStorage, workoutStorage, exerciseStorage } from '../utils/localStorage';
+import { resetToSampleData } from '../utils/sampleData';
 
 /**
  * Profile Screen component
@@ -59,6 +60,17 @@ function ProfileScreen() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handle reset to default data
+  const handleResetToDefault = () => {
+    if (window.confirm('Are you sure you want to reset to default data? This will replace all your exercises and workouts with the original sample data.')) {
+      if (window.confirm('This will delete ALL your current exercises, workouts, and sessions. Are you absolutely sure?')) {
+        resetToSampleData();
+        // Reload the page to refresh all data
+        window.location.reload();
+      }
+    }
   };
 
   // Get recent workout sessions
@@ -301,7 +313,7 @@ function ProfileScreen() {
         
         <div className="data-management">
           <p className="text-muted mb-3">
-            Manage your workout data and export options.
+            Manage your workout data, export options, and reset to default settings.
           </p>
           
           <div className="data-actions">
@@ -327,6 +339,13 @@ function ProfileScreen() {
               }}
             >
               📥 Export Data
+            </button>
+            
+            <button 
+              className="btn btn-warning"
+              onClick={handleResetToDefault}
+            >
+              🔄 Reset to Default
             </button>
             
             <button 

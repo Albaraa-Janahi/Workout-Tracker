@@ -263,7 +263,15 @@ export const dataUtils = {
         return sum + session.getTotalVolume();
       } else {
         // Calculate volume for plain objects
-        const volume = (session.exercises || []).reduce((vol, ex) => vol + ((ex.sets || 0) * (ex.reps || 0)), 0);
+        const volume = (session.exercises || []).reduce((vol, ex) => {
+          if (ex.sets && Array.isArray(ex.sets)) {
+            return vol + ex.sets.reduce((setVol, set) => {
+              const reps = typeof set.reps === 'number' ? set.reps : 0;
+              return setVol + reps;
+            }, 0);
+          }
+          return vol;
+        }, 0);
         return sum + volume;
       }
     }, 0);
@@ -292,7 +300,15 @@ export const dataUtils = {
         return sum + session.getTotalVolume();
       } else {
         // Calculate volume for plain objects
-        const volume = (session.exercises || []).reduce((vol, ex) => vol + ((ex.sets || 0) * (ex.reps || 0)), 0);
+        const volume = (session.exercises || []).reduce((vol, ex) => {
+          if (ex.sets && Array.isArray(ex.sets)) {
+            return vol + ex.sets.reduce((setVol, set) => {
+              const reps = typeof set.reps === 'number' ? set.reps : 0;
+              return setVol + reps;
+            }, 0);
+          }
+          return vol;
+        }, 0);
         return sum + volume;
       }
     }, 0);

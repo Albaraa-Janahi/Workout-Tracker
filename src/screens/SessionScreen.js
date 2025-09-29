@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { WorkoutSession, ExerciseSessionData } from '../models/WorkoutSession';
+import { WorkoutSession, ExerciseSessionData, SetData } from '../models/WorkoutSession';
 import { sessionStorage, workoutStorage, exerciseStorage } from '../utils/localStorage';
 
 /**
@@ -128,6 +128,48 @@ function SessionScreen() {
     };
   }, [isTimerRunning, timer]);
 
+  // Get max reps for a specific level in an exercise (across all workouts)
+  const getMaxRepsForLevel = (exerciseId, level) => {
+    const allSessions = sessionStorage.getAll();
+    let maxReps = 0;
+    
+    allSessions.forEach(session => {
+      if (session.exercises) {
+        const exerciseData = session.exercises.find(ex => ex.exerciseId === exerciseId);
+        if (exerciseData && exerciseData.sets && Array.isArray(exerciseData.sets)) {
+          exerciseData.sets.forEach(set => {
+            if (set.level === level && set.reps > maxReps) {
+              maxReps = set.reps;
+            }
+          });
+        }
+      }
+    });
+    
+    return maxReps;
+  };
+
+  // Get last reps for a specific set and level (across all workouts)
+  const getLastRepsForSetAndLevel = (exerciseId, setIndex, level) => {
+    const allSessions = sessionStorage.getAll();
+    
+    // Sort sessions by date (most recent first)
+    const sortedSessions = allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    for (const session of sortedSessions) {
+      if (session.exercises) {
+        const exerciseData = session.exercises.find(ex => ex.exerciseId === exerciseId);
+        if (exerciseData && exerciseData.sets && Array.isArray(exerciseData.sets)) {
+          if (exerciseData.sets[setIndex] && exerciseData.sets[setIndex].level === level) {
+            return exerciseData.sets[setIndex].reps;
+          }
+        }
+      }
+    }
+    
+    return 0;
+  };
+
   // Load workout and exercise data
   const loadWorkoutData = () => {
     const workoutData = workoutStorage.getById(workoutId);
@@ -161,23 +203,56 @@ function SessionScreen() {
     const exerciseDataMap = {};
     exercises.forEach(exercise => {
       const latestSession = sessionStorage.getLatestByWorkoutId(workoutId);
-      let previousSets = 0;
-      let previousReps = 0;
+      let previousSets = [];
+      let defaultSets = [];
 
       if (latestSession) {
-        const exerciseData = latestSession.getExerciseData(exercise.id);
-        if (exerciseData) {
-          previousSets = exerciseData.sets;
-          previousReps = exerciseData.reps;
+        const exerciseData = latestSession.exercises ? latestSession.exercises.find(ex => ex.exerciseId === exercise.id) : null;
+        if (exerciseData && exerciseData.sets) {
+          // Convert old format to new format if needed
+          if (Array.isArray(exerciseData.sets)) {
+            previousSets = exerciseData.sets.map(set => SetData.fromObject(set));
+            // Use the last chosen level from previous session, or first available level
+            const lastUsedLevel = previousSets.length > 0 ? previousSets[previousSets.length - 1].level : '';
+            const defaultLevel = lastUsedLevel || (exercise.levels && exercise.levels.length > 0 ? exercise.levels[0] : '');
+            
+            // Create default sets with auto-populated reps from last performance across all workouts
+            defaultSets = exerciseData.sets.map((set, index) => {
+              const lastReps = getLastRepsForSetAndLevel(exercise.id, index, defaultLevel);
+              return new SetData(lastReps, defaultLevel);
+            });
+          } else {
+            // Legacy format - convert to new format
+            const sets = exerciseData.sets || 0;
+            const reps = exerciseData.reps || 0;
+            const defaultLevel = exercise.levels && exercise.levels.length > 0 ? exercise.levels[0] : '';
+            if (sets > 0) {
+              for (let i = 0; i < sets; i++) {
+                const setData = new SetData(reps, defaultLevel);
+                previousSets.push(setData);
+                // Auto-populate reps based on last workout for this set and level
+                const lastReps = getLastRepsForSetAndLevel(exercise.id, i, defaultLevel);
+                defaultSets.push(new SetData(lastReps, defaultLevel));
+              }
+            }
+          }
+        }
+      }
+
+      // If no previous data, create 3 default sets
+      if (defaultSets.length === 0) {
+        const defaultLevel = exercise.levels && exercise.levels.length > 0 ? exercise.levels[0] : '';
+        for (let i = 0; i < 3; i++) {
+          // Auto-populate reps based on last workout for this set and level
+          const lastReps = getLastRepsForSetAndLevel(exercise.id, i, defaultLevel);
+          defaultSets.push(new SetData(lastReps, defaultLevel));
         }
       }
 
       exerciseDataMap[exercise.id] = new ExerciseSessionData(
         exercise.id,
-        0,
-        0,
-        previousSets,
-        previousReps
+        defaultSets,
+        previousSets
       );
     });
 
@@ -220,21 +295,72 @@ function SessionScreen() {
     setIsSoundEnabled(!isSoundEnabled);
   };
 
-  // Handle exercise data updates
-  const handleExerciseDataChange = (exerciseId, field, value) => {
-    setExerciseData(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        [field]: parseInt(value) || 0
+  // Handle set data updates
+  const handleSetDataChange = (exerciseId, setIndex, field, value) => {
+    setExerciseData(prev => {
+      const newData = { ...prev };
+      const exerciseData = { ...newData[exerciseId] };
+      const sets = [...exerciseData.sets];
+      
+      if (sets[setIndex]) {
+        sets[setIndex] = { ...sets[setIndex], [field]: value };
+        
+        // If level changed, auto-populate reps from last workout for this set and level
+        if (field === 'level') {
+          const lastReps = getLastRepsForSetAndLevel(exerciseId, setIndex, value);
+          sets[setIndex].reps = lastReps;
+        }
+        
+        exerciseData.sets = sets;
+        newData[exerciseId] = exerciseData;
       }
-    }));
+      
+      return newData;
+    });
+  };
+
+  // Add a new set to an exercise
+  const handleAddSet = (exerciseId) => {
+    setExerciseData(prev => {
+      const newData = { ...prev };
+      const exerciseData = { ...newData[exerciseId] };
+      const sets = [...exerciseData.sets];
+      
+      // Get the exercise to find available levels
+      const exercise = exercises.find(ex => ex.id === exerciseId);
+      const defaultLevel = exercise && exercise.levels && exercise.levels.length > 0 ? exercise.levels[0] : '';
+      
+      sets.push(new SetData(0, defaultLevel));
+      exerciseData.sets = sets;
+      newData[exerciseId] = exerciseData;
+      
+      return newData;
+    });
+  };
+
+  // Remove a set from an exercise
+  const handleRemoveSet = (exerciseId, setIndex) => {
+    setExerciseData(prev => {
+      const newData = { ...prev };
+      const exerciseData = { ...newData[exerciseId] };
+      const sets = [...exerciseData.sets];
+      
+      if (sets.length > 1) { // Don't remove the last set
+        sets.splice(setIndex, 1);
+        exerciseData.sets = sets;
+        newData[exerciseId] = exerciseData;
+      }
+      
+      return newData;
+    });
   };
 
   // Handle exercise completion
   const handleExerciseComplete = (exerciseId) => {
     const data = exerciseData[exerciseId];
-    if (data.sets > 0 && data.reps > 0) {
+    const hasCompletedSets = data.sets.some(set => set.reps > 0);
+    
+    if (hasCompletedSets) {
       // Update exercise data
       setExerciseData(prev => ({
         ...prev,
@@ -251,7 +377,7 @@ function SessionScreen() {
         setCurrentExerciseIndex(nextIndex);
       }
     } else {
-      alert('Please enter both sets and reps before completing the exercise');
+      alert('Please complete at least one set with reps before completing the exercise');
     }
   };
 
@@ -275,7 +401,6 @@ function SessionScreen() {
       exercises: Object.values(exerciseData).map(data => ({
         exerciseId: data.exerciseId,
         sets: data.sets,
-        reps: data.reps,
         completed: data.completed,
         completedAt: data.completedAt
       })),
@@ -312,7 +437,13 @@ function SessionScreen() {
   // Get total volume
   const getTotalVolume = () => {
     return Object.values(exerciseData).reduce((total, ex) => {
-      return total + (ex.sets * ex.reps);
+      if (ex.sets && Array.isArray(ex.sets)) {
+        return total + ex.sets.reduce((setTotal, set) => {
+          const reps = typeof set.reps === 'number' ? set.reps : 0;
+          return setTotal + reps;
+        }, 0);
+      }
+      return total;
     }, 0);
   };
 
@@ -410,10 +541,10 @@ function SessionScreen() {
           <thead>
             <tr>
               <th>Exercise</th>
-              <th>Type</th>
-              <th>Previous</th>
-              <th>Sets</th>
+              <th>Set</th>
               <th>Reps</th>
+              <th>Max</th>
+              <th className="level-header-cell">Level</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -424,60 +555,104 @@ function SessionScreen() {
               const isCompleted = data.completed;
               
               return (
-                <tr 
-                  key={exercise.id}
-                  className={`${isCurrent ? 'exercise-current' : ''} ${isCompleted ? 'exercise-completed' : ''}`}
-                >
-                  <td className="exercise-name-cell">
-                    {exercise.name}
-                    {isCurrent && <span style={{ marginLeft: '10px', color: '#007bff' }}>👈 Current</span>}
-                  </td>
-                  <td>
-                    <span className={`exercise-type-cell exercise-type-${exercise.type.toLowerCase()}`}>
-                      {exercise.type}
-                    </span>
-                  </td>
-                  <td>
-                    {data.previousSets > 0 && data.previousReps > 0 ? (
-                      <span className="text-muted">
-                        {data.previousSets} × {data.previousReps}
-                      </span>
-                    ) : (
-                      <span className="text-muted">First time</span>
-                    )}
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      className="exercise-input"
-                      value={data.sets}
-                      onChange={(e) => handleExerciseDataChange(exercise.id, 'sets', e.target.value)}
-                      min="0"
-                      disabled={isCompleted}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      className="exercise-input"
-                      value={data.reps}
-                      onChange={(e) => handleExerciseDataChange(exercise.id, 'reps', e.target.value)}
-                      min="0"
-                      disabled={isCompleted}
-                    />
-                  </td>
-                  <td>
-                    <div className="exercise-actions">
-                      <button
-                        className="complete-btn"
-                        onClick={() => handleExerciseComplete(exercise.id)}
-                        disabled={isCompleted || data.sets === 0 || data.reps === 0}
-                      >
-                        {isCompleted ? '✅ Done' : '✓ Complete'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <React.Fragment key={exercise.id}>
+                  {/* Set rows */}
+                  {data.sets.map((set, setIndex) => (
+                    <tr key={`${exercise.id}-set-${setIndex}`} className={`set-row ${isCurrent ? 'exercise-current' : ''} ${isCompleted ? 'exercise-completed' : ''}`}>
+                      {setIndex === 0 && (
+                        <td className="exercise-name-cell" rowSpan={data.sets.length}>
+                          <div className="exercise-header-content">
+                            <div className="exercise-name">
+                              {exercise.name}
+                              {isCurrent && <span className="current-indicator">👈 Current</span>}
+                            </div>
+                            <span className={`exercise-type exercise-type-${exercise.type.toLowerCase()}`}>
+                              {exercise.type}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      <td className="set-number">Set {setIndex + 1}</td>
+                      <td>
+                        <input
+                          type="number"
+                          className="exercise-input"
+                          value={set.reps}
+                          onChange={(e) => handleSetDataChange(exercise.id, setIndex, 'reps', parseInt(e.target.value) || 0)}
+                          min="0"
+                          disabled={isCompleted}
+                          placeholder="0"
+                        />
+                      </td>
+                      <td className="max-reps-cell">
+                        <div className="max-reps-display">
+                          {getMaxRepsForLevel(exercise.id, set.level)}
+                        </div>
+                      </td>
+                      <td className="level-cell">
+                        {exercise.levels && exercise.levels.length > 0 ? (
+                          <select
+                            className="exercise-input"
+                            value={set.level}
+                            onChange={(e) => handleSetDataChange(exercise.id, setIndex, 'level', e.target.value)}
+                            disabled={isCompleted}
+                          >
+                            {exercise.levels.map((level, levelIndex) => (
+                              <option key={levelIndex} value={level}>
+                                {level}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-muted">No levels</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleRemoveSet(exercise.id, setIndex)}
+                          disabled={isCompleted || data.sets.length <= 1}
+                          title="Remove this set"
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {/* Exercise controls row */}
+                  <tr className={`exercise-controls-row ${isCompleted ? 'exercise-completed' : ''}`}>
+                    <td colSpan="6">
+                      <div className="exercise-controls">
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => handleAddSet(exercise.id)}
+                          disabled={isCompleted}
+                          title="Add Set"
+                        >
+                          ➕ Add Set
+                        </button>
+                        <span className="set-count">{data.sets.length} sets</span>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleRemoveSet(exercise.id, data.sets.length - 1)}
+                          disabled={isCompleted || data.sets.length <= 1}
+                          title="Remove Last Set"
+                        >
+                          ➖ Remove Set
+                        </button>
+                        <button
+                          className="complete-btn"
+                          onClick={() => handleExerciseComplete(exercise.id)}
+                          disabled={isCompleted || !data.sets.some(set => set.reps > 0)}
+                        >
+                          {isCompleted ? '✅ Done' : 
+                           !data.sets.some(set => set.reps > 0) ? 'Complete Exercise' : '✓ Complete Exercise'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })}
           </tbody>

@@ -28,12 +28,11 @@ export class WorkoutSession {
   }
 
   // Add or update exercise data in the session
-  updateExerciseData(exerciseId, sets, reps) {
+  updateExerciseData(exerciseId, sets) {
     const existingIndex = this.exercises.findIndex(ex => ex.exerciseId === exerciseId);
     const exerciseData = {
       exerciseId,
-      sets: parseInt(sets) || 0,
-      reps: parseInt(reps) || 0,
+      sets: sets, // Array of SetData objects
       completed: true,
       completedAt: new Date().toISOString()
     };
@@ -61,10 +60,13 @@ export class WorkoutSession {
     return Math.round((completedExercises / totalExercises) * 100);
   }
 
-  // Get total volume (sets * reps)
+  // Get total volume (total reps across all sets)
   getTotalVolume() {
     return this.exercises.reduce((total, ex) => {
-      return total + (ex.sets * ex.reps);
+      if (ex.sets && Array.isArray(ex.sets)) {
+        return total + ex.sets.reduce((setTotal, set) => setTotal + (set.reps || 0), 0);
+      }
+      return total;
     }, 0);
   }
 
@@ -81,15 +83,42 @@ export class WorkoutSession {
 }
 
 /**
+ * SetData model for tracking individual set performance
+ */
+export class SetData {
+  constructor(reps = 0, level = '', completed = false) {
+    this.reps = reps;
+    this.level = level;
+    this.completed = completed;
+    this.completedAt = null;
+  }
+
+  // Static method to create from object
+  static fromObject(obj) {
+    const setData = new SetData(
+      obj.reps || 0,
+      obj.level || '',
+      obj.completed || false
+    );
+    setData.completedAt = obj.completedAt;
+    return setData;
+  }
+
+  // Mark set as completed
+  markCompleted() {
+    this.completed = true;
+    this.completedAt = new Date().toISOString();
+  }
+}
+
+/**
  * ExerciseSessionData model for tracking individual exercise performance
  */
 export class ExerciseSessionData {
-  constructor(exerciseId, sets = 0, reps = 0, previousSets = 0, previousReps = 0) {
+  constructor(exerciseId, sets = [], previousSets = []) {
     this.exerciseId = exerciseId;
-    this.sets = sets;
-    this.reps = reps;
-    this.previousSets = previousSets;
-    this.previousReps = previousReps;
+    this.sets = sets; // Array of SetData objects
+    this.previousSets = previousSets; // Array of previous SetData objects
     this.completed = false;
     this.completedAt = null;
   }
@@ -98,27 +127,65 @@ export class ExerciseSessionData {
   static fromObject(obj) {
     const data = new ExerciseSessionData(
       obj.exerciseId,
-      obj.sets || 0,
-      obj.reps || 0,
-      obj.previousSets || 0,
-      obj.previousReps || 0
+      obj.sets ? obj.sets.map(set => SetData.fromObject(set)) : [],
+      obj.previousSets ? obj.previousSets.map(set => SetData.fromObject(set)) : []
     );
     data.completed = obj.completed || false;
     data.completedAt = obj.completedAt;
     return data;
   }
 
+  // Add a new set
+  addSet(reps = 0, level = '') {
+    this.sets.push(new SetData(reps, level));
+  }
+
+  // Remove a set by index
+  removeSet(index) {
+    if (index >= 0 && index < this.sets.length) {
+      this.sets.splice(index, 1);
+    }
+  }
+
+  // Update a set
+  updateSet(index, reps, level) {
+    if (index >= 0 && index < this.sets.length) {
+      this.sets[index].reps = reps;
+      this.sets[index].level = level;
+    }
+  }
+
+  // Get total reps across all sets
+  getTotalReps() {
+    return this.sets.reduce((total, set) => total + set.reps, 0);
+  }
+
+  // Get number of sets
+  getSetCount() {
+    return this.sets.length;
+  }
+
+  // Get completed sets count
+  getCompletedSetsCount() {
+    return this.sets.filter(set => set.completed).length;
+  }
+
+  // Check if all sets are completed
+  areAllSetsCompleted() {
+    return this.sets.length > 0 && this.sets.every(set => set.completed);
+  }
+
   // Check if current performance is better than previous
   isImproved() {
-    const currentVolume = this.sets * this.reps;
-    const previousVolume = this.previousSets * this.previousReps;
+    const currentVolume = this.getTotalReps();
+    const previousVolume = this.previousSets.reduce((total, set) => total + set.reps, 0);
     return currentVolume > previousVolume;
   }
 
   // Get improvement percentage
   getImprovementPercentage() {
-    const currentVolume = this.sets * this.reps;
-    const previousVolume = this.previousSets * this.previousReps;
+    const currentVolume = this.getTotalReps();
+    const previousVolume = this.previousSets.reduce((total, set) => total + set.reps, 0);
     
     if (previousVolume === 0) return currentVolume > 0 ? 100 : 0;
     

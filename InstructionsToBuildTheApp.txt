@@ -1,0 +1,25 @@
+Background: I am planning to convert from gym to calisthenics home workout. I want a web app that helps me organize my workout and track progress. This will be for personal use, so the entire app will be as frontend only, built using ReactJS.
+
+Main Features:
+1- Create an exercises, for each i should be able to specify:
+    a- name
+    b- type: Warmup | Stretching | Main
+    c- Target muscle
+    d- secondry muscle
+2- Create a workout, for each i should be able to specify:
+    a- name
+    c- exercises (from already created list)
+    d- Muscles Covered (auto populated based on selected exercises)
+    e- Recomeneded day of the week
+3- Workout Session, which i can pick the workout i would like to train now to track the current status of my workout and record everything in rest sessions
+
+Screens:
+1- Create Exercise: A screen that is responsible of creating, editting, and deleting exercises.
+2- Create Workout: A screen that is responsibe of creating, editting, and deleting workouts.
+3- Profile: A screen will allow me to edit my name, also showing statistics and insights about my workouts.
+4- Session: A screen i will use during my workout, it will have a timer that is default 100 seconds, i will use it for the rest between sets. Also, a table showing all the exercises, and the current one i am doing now. Once done from each i click on a button with tick symbol which highlights the next excercise in the table. The table should show me the past values i mean reps and sets for each exercise that last time i trained on to compare, and empty fields that i have to fill during my workout, reps and sets.
+
+Important notes:
+1- Make sure to organize the repo properly and to include good comments while writting the code so i can change things later.
+2- Everything will be stored locally in the project as JSON, so we can load it when needed.
+3- No users required as it is just me, only one user created directly in the code and no need to sign in.

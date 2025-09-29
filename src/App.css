@@ -1,0 +1,258 @@
+/* App-specific styles */
+.App {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.main-content {
+  padding-top: 20px;
+}
+
+/* Navigation styles */
+.nav {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.nav-brand h1 {
+  color: white;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  margin: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  color: white;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.nav-link.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+}
+
+/* Responsive navigation */
+@media (max-width: 768px) {
+  .nav .container {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .nav-brand {
+    margin-bottom: 10px;
+  }
+  
+  .nav-brand h1 {
+    font-size: 1.2rem;
+  }
+  
+  .nav-list {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .nav-link {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .nav-item {
+    width: 100%;
+  }
+  
+  .nav-link {
+    justify-content: center;
+    margin: 2px 0;
+  }
+}
+
+/* Exercise Level Management Styles */
+.form-label-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.levels-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #fafafa;
+  min-height: 60px;
+}
+
+.level-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.level-input-group:last-child {
+  margin-bottom: 0;
+}
+
+.level-number {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 80px;
+  font-size: 0.9rem;
+}
+
+.level-input {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.level-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.level-remove {
+  padding: 6px 8px;
+  min-width: auto;
+}
+
+.level-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-levels-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 20px;
+}
+
+.no-levels-message p {
+  margin: 5px 0;
+}
+
+.no-levels-message em {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.levels-help-message {
+  text-align: center;
+  color: #667eea;
+  font-style: italic;
+  padding: 15px;
+  background-color: #f8f9ff;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.levels-help-message p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Exercise Levels Display */
+.exercise-levels {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.levels-label {
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.levels-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.level-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Responsive adjustments for levels */
+@media (max-width: 768px) {
+  .level-input-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .level-number {
+    min-width: auto;
+    text-align: center;
+  }
+  
+  .levels-list {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .level-badge {
+    text-align: center;
+    padding: 6px 8px;
+  }
+}
